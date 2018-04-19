@@ -16,7 +16,7 @@ public class AutowiredHandle {
         return filter(klass.getDeclaredFields());
     }
 
-    public List<Field> filter(Field[] fields) {
+    private List<Field> filter(Field[] fields) {
         var annotationFields = new LinkedList<Field>();
         for (var field : fields) {
             if (Objects.nonNull(field.getAnnotation(Autowired.class))) {

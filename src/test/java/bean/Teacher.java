@@ -1,7 +1,9 @@
 package bean;
 
 import org.xdove.ioc.annotation.Autowired;
+import org.xdove.ioc.annotation.Bean;
 
+@Bean
 public class Teacher {
 
 
