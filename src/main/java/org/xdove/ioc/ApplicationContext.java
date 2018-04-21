@@ -10,7 +10,7 @@ public class ApplicationContext {
     private BeanFactory beanFactory = BeanFactory.getInstance();
 
     public void init() throws IOException, ClassNotFoundException {
-        beanFactory.loadBaseDirClass();
+        beanFactory.init();
     }
 
     public Object getBean(Class klass) throws InvocationTargetException, NoSuchMethodException, InstantiationException, NoSuchBeanException, IllegalAccessException {

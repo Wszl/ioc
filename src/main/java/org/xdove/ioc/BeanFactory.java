@@ -39,20 +39,16 @@ public class BeanFactory {
                 if (factory == null) {
                     BeanFactory.factory = new BeanFactory();
                 }
-            }
+        }
         }
         return factory;
     }
 
-    public Object getBean(Class klass) throws NoSuchMethodException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchBeanException {
+    public Object getBean(Class klass) {
         Objects.requireNonNull(klass);
-        Class beanKlass = klassCache.get(klass.getName());
-        if (beanKlass == null) {
-            throw new NoSuchBeanException(klass.getName());
-        }
         Object bean = instanceCache.get(klass);
-        if (bean == null) {
-            bean = initBean(beanKlass);
+        if (Objects.isNull(bean)) {
+            throw new NoSuchBeanException(klass.getName());
         }
         return bean;
     }
@@ -66,30 +62,61 @@ public class BeanFactory {
         klassCache.put(klass.getName(), klass);
     }
 
-    private Object initBean(Class beanKlass) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        var bean = beanKlass.getDeclaredConstructor().newInstance();
-        inject(bean);
+    private void loadBean(Class beanKlass) {
+        if (!klassCache.containsValue(beanKlass)) {
+            throw new NoSuchBeanException(beanKlass.getName());
+        }
+        Object bean = null;
+        try {
+            bean = beanKlass.getDeclaredConstructor().newInstance();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
         instanceCache.put(beanKlass, bean);
-        return bean;
     }
 
-    public void inject(Object receive) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    private void initBean(Object bean) {
+        inject(bean);
+    }
+
+    public void inject(Object receive) {
         Objects.requireNonNull(receive);
         var handle = AutowiredHandle.getInstance();
         for (Field field : handle.handleClass(receive.getClass())) {
             var destInstance = instanceCache.get(field.getType());
             if (destInstance == null) {
-                destInstance = initBean(field.getType());
+                throw new NoSuchBeanException(field.getType().getName());
             }
             var receiveInstance = instanceCache.get(receive.getClass());
             if (receiveInstance == null) {
-                instanceCache.put(receive.getClass(), receive);
-                receiveInstance = receive;
+                throw new NoSuchBeanException(receive.getClass().getName());
             }
 
             field.setAccessible(true);
-            field.set(receiveInstance, destInstance);
+            try {
+                field.set(receiveInstance, destInstance);
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
         }
+    }
+
+    private void loadAllBean() {
+        klassCache.forEach(
+                (k, v) -> loadBean(v)
+        );
+    }
+
+    private void initAllBean() {
+        instanceCache.forEach(
+                (k, v) -> initBean(v)
+        );
     }
 
 
@@ -177,7 +204,7 @@ public class BeanFactory {
         return ClassLoader.getSystemClassLoader();
     }
 
-    public void loadBaseDirClass() throws IOException, ClassNotFoundException {
+    private void loadBaseDirClass() throws IOException, ClassNotFoundException {
         Objects.requireNonNull(getBaseDir());
         File baseDirFile = new File(parseBaseDirPath(getBaseDir()));
         if (!baseDirFile.exists()) {
@@ -195,6 +222,12 @@ public class BeanFactory {
             }
             klassCache.put(klassName, klass);
         }
+    }
+
+    public void init() throws IOException, ClassNotFoundException {
+        loadBaseDirClass();
+        loadAllBean();
+        initAllBean();
     }
 
 }
